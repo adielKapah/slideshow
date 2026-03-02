@@ -3,119 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Photo Tablet Frame</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <title>המסגרת הדיגיטלית שלי</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; }
-        .swiper { width: 100%; height: 100%; }
-        .swiper-slide { display: flex; justify-content: center; align-items: center; }
-        img, video { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.3s; }
-        
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111;
-            z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: black; color: white;
+            font-family: sans-serif; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
         }
-        input { padding: 10px; font-size: 18px; border-radius: 5px; border: none; margin-bottom: 10px; }
-        button { padding: 10px 20px; font-size: 18px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
-        
-        .rotate-90 { transform: rotate(90deg); }
+        #login-screen {
+            display: flex; flex-direction: column; gap: 10px; z-index: 10;
+        }
+        input, button { padding: 10px; font-size: 18px; }
+        #media-container {
+            width: 100%; height: 100%; display: none;
+            justify-content: center; align-items: center; position: relative;
+        }
+        .media-item {
+            max-width: 100%; max-height: 100%;
+            object-fit: contain; transition: transform 0.3s ease;
+        }
+        #controls {
+            position: absolute; bottom: 20px; right: 20px; z-index: 5;
+            display: flex; gap: 15px;
+        }
+        .control-btn {
+            background: rgba(0,0,0,0.5); color: white; border: 1px solid white;
+            padding: 10px; border-radius: 5px; cursor: pointer; font-size: 16px;
+        }
+        #status-msg { position: absolute; top: 20px; font-size: 20px; }
     </style>
 </head>
 <body>
 
-<div id="login-overlay">
-    <h2>הזן סיסמה לצפייה</h2>
-    <input type="password" id="pass-input" placeholder="סיסמה...">
-    <button onclick="startGallery()">כניסה</button>
-</div>
+    <div id="login-screen">
+        <h2>הכנס סיסמה למסגרת:</h2>
+        <input type="password" id="password-input" placeholder="סיסמה...">
+        <button onclick="startApp()">התחבר</button>
+        <div id="error-msg" style="color: red;"></div>
+    </div>
 
-<div class="swiper">
-    <div class="swiper-wrapper" id="gallery-wrapper">
+    <div id="status-msg"></div>
+
+    <div id="media-container">
+        <div id="controls">
+            <button class="control-btn" id="rotate-btn" onclick="rotateCurrentMedia()">🔄 סובב 90°</button>
         </div>
-</div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-<script>
-    let swiper;
-    const GAS_URL = "YOUR_APPS_SCRIPT_URL_HERE"; // כתובת ה-Web App שפרסמת
+    <script>
+        // --- הגדרות ---
+        const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL'; 
+        const SLIDE_DURATION = 3000; // 3 שניות לתמונה
+        
+        let mediaData = [];
+        let currentIndex = 0;
+        let isPlaying = true;
+        let slideTimer;
+        let currentElement = null;
 
-    async function startGallery() {
-        const pass = document.getElementById('pass-input').value;
-        const overlay = document.getElementById('login-overlay');
+        // משתנים לזיהוי החלקה (Swipe)
+        let touchStartX = 0;
+        let touchEndX = 0;
 
-        try {
-            const response = await fetch(`${GAS_URL}?pass=${pass}`);
-            const data = await response.json();
+        async function startApp() {
+            const pass = document.getElementById('password-input').value;
+            if(!pass) return;
+
+            document.getElementById('error-msg').innerText = "טוען נתונים...";
             
-            if (data === "Unauthorized") return alert("סיסמה שגויה");
-            
-            overlay.style.display = 'none';
-            renderGallery(data);
-        } catch (e) {
-            alert("שגיאה בטעינת נתונים. וודא שהסיסמה נכונה והסקריפט מפורסם.");
-        }
-    }
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?pass=${encodeURIComponent(pass)}`);
+                const result = await response.json();
 
-    function renderGallery(items) {
-        const wrapper = document.getElementById('gallery-wrapper');
-        items.forEach(item => {
-            const slide = document.createElement('div');
-            slide.className = 'swiper-slide';
-            
-            let media;
-            if (item.isVideo) {
-                media = document.createElement('video');
-                media.src = item.url;
-                media.controls = false;
-                media.loop = true;
-            } else {
-                media = document.createElement('img');
-                media.src = item.url;
+                if (result.error) {
+                    document.getElementById('error-msg').innerText = "סיסמה שגויה!";
+                } else if (result.success && result.data.length > 0) {
+                    mediaData = result.data;
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('media-container').style.display = 'flex';
+                    setupTouchEvents();
+                    setupClickEvent();
+                    showMedia(currentIndex);
+                } else {
+                    document.getElementById('error-msg').innerText = "לא נמצאו תמונות בתיקייה.";
+                }
+            } catch (err) {
+                document.getElementById('error-msg').innerText = "שגיאת תקשורת עם השרת.";
             }
+        }
+
+        function showMedia(index) {
+            clearTimeout(slideTimer); // עצירת הטיימר הקודם
+            const container = document.getElementById('media-container');
+            const item = mediaData[index];
             
-            // לחיצה ארוכה או לחיצה כפולה לסיבוב 90 מעלות
-            media.onclick = (e) => {
-                // לחיצה באמצע (עצירה/הפעלה)
-                if (swiper.autoplay.running) swiper.autoplay.stop();
-                else swiper.autoplay.start();
-            };
+            // הסרת האלמנט הקודם (אם קיים)
+            if (currentElement) {
+                currentElement.remove();
+            }
 
-            media.ondblclick = () => {
-                media.classList.toggle('rotate-90');
-            };
+            // שליפת זווית הסיבוב מהזיכרון המקומי
+            let rotation = localStorage.getItem('rot_' + item.id) || 0;
 
-            slide.appendChild(media);
-            wrapper.appendChild(slide);
-        });
+            if (item.type === 'video') {
+                currentElement = document.createElement('video');
+                currentElement.src = item.url;
+                currentElement.autoplay = true;
+                currentElement.controls = false; 
+                currentElement.muted = false; // כיוון שהמשתמש כבר לחץ במסך כדי להכניס סיסמה, ניתן להפעיל שמע
+                
+                // כשהסרטון מסתיים - עבור לבא
+                currentElement.onended = () => { if(isPlaying) nextSlide(); };
+                
+                // טיפול בשגיאות טעינת סרטון
+                currentElement.onerror = () => { if(isPlaying) nextSlide(); };
 
-        initSwiper();
-    }
-
-    function initSwiper() {
-        swiper = new Swiper('.swiper', {
-            loop: true,
-            autoplay: {
-                delay: 3000,
-                disableOnInteraction: false,
-            },
-            effect: 'fade', // מעבר חלק
-            on: {
-                slideChangeTransitionStart: function () {
-                    // עצירת כל הוידאוים וניגון רק של הנוכחי
-                    document.querySelectorAll('video').forEach(v => v.pause());
-                    const activeSlide = this.slides[this.activeIndex];
-                    const video = activeSlide.querySelector('video');
-                    if (video) {
-                        video.play();
-                        this.autoplay.stop(); // עצור טיימר כשיש וידאו
-                        video.onended = () => this.slideNext(); 
-                    } else {
-                        this.autoplay.start();
-                    }
+            } else {
+                currentElement = document.createElement('img');
+                currentElement.src = item.url;
+                
+                // אם זה תמונה וכרגע מנגנים, הפעל טיימר ל-3 שניות
+                if (isPlaying) {
+                    slideTimer = setTimeout(nextSlide, SLIDE_DURATION);
                 }
             }
-        });
-    }
-</script>
+
+            currentElement.className = 'media-item';
+            currentElement.style.transform = `rotate(${rotation}deg)`;
+            
+            // הוספת האלמנט למסך (לפני כפתורי השליטה)
+            container.insertBefore(currentElement, document.getElementById('controls'));
+        }
+
+        function nextSlide() {
+            currentIndex = (currentIndex + 1) % mediaData.length;
+            showMedia(currentIndex);
+        }
+
+        function prevSlide() {
+            currentIndex = (currentIndex - 1 + mediaData.length) % mediaData.length;
+            showMedia(currentIndex);
+        }
+
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            document.getElementById('status-msg').innerText = isPlaying ? "" : "⏸️ הושהה";
+            
+            if (isPlaying) {
+                if (mediaData[currentIndex].type === 'image') {
+                    nextSlide(); // מעבר מיידי וחידוש הריצה
+                } else if (currentElement && currentElement.tagName === 'VIDEO') {
+                    currentElement.play();
+                }
+            } else {
+                clearTimeout(slideTimer);
+                if (currentElement && currentElement.tagName === 'VIDEO') {
+                    currentElement.pause();
+                }
+            }
+        }
+
+        function rotateCurrentMedia() {
+            const item = mediaData[currentIndex];
+            let currentRot = parseInt(localStorage.getItem('rot_' + item.id) || '0');
+            currentRot = (currentRot + 90) % 360;
+            
+            // שמירה בזיכרון והחלה על האלמנט
+            localStorage.setItem('rot_' + item.id, currentRot);
+            if(currentElement) {
+                currentElement.style.transform = `rotate(${currentRot}deg)`;
+            }
+        }
+
+        // --- ניהול אירועי מגע (החלקה) ---
+        function setupTouchEvents() {
+            const container = document.getElementById('media-container');
+            container.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+            container.addEventListener('touchend', e => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
+        }
+
+        function handleSwipe() {
+            const threshold = 50; // מינימום מרחק כדי להחשב כהחלקה
+            if (touchEndX < touchStartX - threshold) {
+                // החלקה שמאלה (תמונה הבאה)
+                nextSlide();
+            } else if (touchEndX > touchStartX + threshold) {
+                // החלקה ימינה (תמונה קודמת)
+                prevSlide();
+            }
+        }
+
+        // --- לחיצה במרכז המסך ---
+        function setupClickEvent() {
+            const container = document.getElementById('media-container');
+            container.addEventListener('click', function(e) {
+                // מונע מהלחיצה על כפתור הסיבוב לעצור את התצוגה
+                if(e.target.tagName !== 'BUTTON') {
+                    togglePlayPause();
+                }
+            });
+        }
+    </script>
 </body>
 </html>
