@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מצגת תמונות ווידאו חכמה</title>
-    
+    <title>מסגרת תמונות חכמה</title>
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-    
+
     <style>
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
@@ -19,19 +19,23 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: #000; /* שחור נקי, בלי כחול */
+            background: #000;
         }
 
-        .photo, video {
+        /* הגדרות התמונה */
+        .photo {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
             transition: transform 0.4s ease-in-out;
         }
 
-        .rotate-90 { transform: rotate(90deg); }
+        /* מחלקת סיבוב ב-90 מעלות */
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
 
-        /* כפתורי שליטה שמופיעים רק בנגיעה */
+        /* כפתורי שליטה צפים (יופיעו רק כשנוגעים במסך) */
         .controls {
             position: fixed;
             bottom: 30px;
@@ -40,134 +44,130 @@
             z-index: 100;
             display: flex;
             gap: 20px;
+            opacity: 0.2;
+            transition: opacity 0.3s;
             opacity: 0;
             transition: opacity 0.5s;
         }
-        body:hover .controls, body:active .controls { opacity: 1; }
+        .controls:hover { opacity: 1; }
 
+        /* הצגת כפתורים רק כשנוגעים במסך */
+body:active .controls, body:hover .controls {
+    opacity: 1;
+}
         .btn {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
             color: white;
+            border: 1px solid rgba(255,255,255,0.4);
             border: 1px solid rgba(255,255,255,0.3);
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 30px;
             cursor: pointer;
             backdrop-filter: blur(5px);
+            backdrop-filter: blur(2px);
         }
 
+        /* הודעת טעינה */
         #loader {
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            z-index: 1000;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <div id="loader">טוען את המדיה...</div>
+    <div id="loader">מתחבר לאלבום ותולש תמונות...</div>
 
     <div class="swiper">
-        <div class="swiper-wrapper" id="image-container"></div>
+        <div class="swiper-wrapper" id="image-container">
+            </div>
     </div>
 
     <div class="controls">
-        <button class="btn" onclick="rotateCurrent()">סובב 🔄</button>
+        <button class="btn" onclick="rotateCurrent()">סובב תמונה 🔄</button>
         <button class="btn" id="playPauseBtn" onclick="togglePlay()">עצור ⏸️</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
     <script>
-        // --- הגדרות חיבור ---
-        const SCRIPT_URL = "https://script.google.com/macros/library/d/1RI8giockl_RUozjY-PudkLMiZeqqPKNq5jIlm7hM2sQXbpahEGEndMsJ/3";
+        // --- הגדרות אישיות (חובה לעדכן!) ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi4FoqMU79jny5VU2T0Xqk8-QQ5MnvRFSXBYRlSPhIhBd34pj1XomM7zrjUyLRcTk6ow/exec";
         const KEY = "1234";
-        const REPO_URL = "https://adielkapah.github.io/slideshow/"; 
-        // --------------------
+        // ----------------------------------
 
         let swiper;
-        let slideTimeout;
 
-        async function fetchMedia() {
+        async function fetchImages() {
             try {
                 const response = await fetch(`${SCRIPT_URL}?key=${KEY}`);
-                const items = await response.json();
-                
-                if (items && items.length > 0) {
-                    renderSlideshow(items);
+                const images = await response.json();
+
+                if (images && images.length > 0) {
+                    renderSlideshow(images);
                     document.getElementById('loader').style.display = 'none';
                 } else {
-                    document.getElementById('loader').innerText = "לא נמצאה מדיה באלבום.";
+                    document.getElementById('loader').innerText = "לא נמצאו תמונות באלבום.";
                 }
             } catch (error) {
-                document.getElementById('loader').innerText = "שגיאה בחיבור לסקריפט.";
+                console.error("Error fetching images:", error);
+                document.getElementById('loader').innerText = "שגיאה בחיבור לשרת.";
             }
         }
 
-        function renderSlideshow(items) {
+        function renderSlideshow(imageUrls) {
             const container = document.getElementById('image-container');
-            container.innerHTML = items.map(item => {
-                const isVideo = item.isVideo || item.url.includes('video');
-                return `
-                    <div class="swiper-slide" data-is-video="${isVideo}">
-                        ${isVideo ? 
-                            `<video src="${item.url}=dv" class="photo" muted playsinline></video>` : 
-                            `<img src="${item.url}=w2048" class="photo">`
-                        }
-                    </div>
-                `;
-            }).join('');
+            container.innerHTML = imageUrls.map(url => `
+                <div class="swiper-slide">
+                    <img src="${url}" class="photo">
+                </div>
+            `).join('');
 
+            // אתחול הקרוסלה
             swiper = new Swiper('.swiper', {
                 loop: true,
                 speed: 1000,
+                autoplay: {
+                    delay: 3000, // מעבר כל 3 שניות
+                    disableOnInteraction: false,
+                },
+                navigation: {
+                    nextEl: null,
+                    prevEl: null,
+                },
+                // לחיצה באמצע עוצרת/מפעילה
                 on: {
-                    init: function() { handleSlideChange(this); },
-                    slideChange: function() { handleSlideChange(this); }
+                    click: function () {
+                        togglePlay();
+                    }
                 }
             });
         }
 
-        function handleSlideChange(s) {
-            const activeSlide = s.slides[s.activeIndex];
-            if (!activeSlide) return;
-
-            const isVideo = activeSlide.getAttribute('data-is-video') === 'true';
-            const video = activeSlide.querySelector('video');
-
-            if (slideTimeout) clearTimeout(slideTimeout);
-
-            if (isVideo && video) {
-                video.currentTime = 0;
-                video.play().catch(e => console.log("Auto-play blocked"));
-                video.onended = () => { s.slideNext(); };
-            } else {
-                slideTimeout = setTimeout(() => {
-                    if (s.autoplay && !s.autoplay.running) return; 
-                    s.slideNext();
-                }, 3000);
-            }
-        }
-
         function togglePlay() {
             const btn = document.getElementById('playPauseBtn');
-            if (slideTimeout || document.querySelector('video')) {
-                // לוגיקה פשוטה לעצירה: אם יש טיימר, נבטל אותו
-                clearTimeout(slideTimeout);
-                slideTimeout = null;
-                btn.innerText = "נגן ▶️";
+            if (swiper.autoplay.running) {
+                swiper.autoplay.stop();
+                btn.innerText = "הפעל ▶️";
             } else {
-                location.reload(); // רענון פשוט להחזרת הריצה
+                swiper.autoplay.start();
+                btn.innerText = "עצור ⏸️";
             }
         }
 
         function rotateCurrent() {
             const activeSlide = document.querySelector('.swiper-slide-active .photo');
-            if (activeSlide) activeSlide.classList.toggle('rotate-90');
+            if (activeSlide) {
+                activeSlide.classList.toggle('rotate-90');
+            }
         }
 
-        fetchMedia();
+        // הפעלה ראשונית
+        fetchImages();
     </script>
 </body>
 </html>
