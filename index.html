@@ -1,216 +1,683 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>המסגרת הדיגיטלית שלי</title>
-    <style>
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: black; color: white;
-            font-family: sans-serif; overflow: hidden;
-            display: flex; justify-content: center; align-items: center;
-        }
-        #login-screen {
-            display: flex; flex-direction: column; gap: 10px; z-index: 10;
-        }
-        input, button { padding: 10px; font-size: 18px; }
-        #media-container {
-            width: 100%; height: 100%; display: none;
-            justify-content: center; align-items: center; position: relative;
-        }
-        .media-item {
-            max-width: 100%; max-height: 100%;
-            object-fit: contain; transition: transform 0.3s ease;
-        }
-        #controls {
-            position: absolute; bottom: 20px; right: 20px; z-index: 5;
-            display: flex; gap: 15px;
-        }
-        .control-btn {
-            background: rgba(0,0,0,0.5); color: white; border: 1px solid white;
-            padding: 10px; border-radius: 5px; cursor: pointer; font-size: 16px;
-        }
-        #status-msg { position: absolute; top: 20px; font-size: 20px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>גלריה משפחתית</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #2a2a2a;
+    --accent: #c9a96e;
+    --text: #f0ece4;
+    --text-dim: #888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ===== LOGIN ===== */
+  #loginScreen {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+    z-index: 200;
+  }
+  .login-box {
+    text-align: center;
+    width: 280px;
+  }
+  .login-title {
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .login-subtitle {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text);
+    margin-bottom: 40px;
+  }
+  .login-input-wrap {
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .login-input-wrap input {
+    width: 100%;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 18px;
+    font-family: 'Heebo', sans-serif;
+    text-align: center;
+    letter-spacing: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-input-wrap input:focus {
+    border-color: var(--accent);
+  }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #0a0a0a;
+    border: none;
+    border-radius: 4px;
+    font-size: 15px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .login-btn:hover { opacity: 0.85; }
+  #loginError {
+    color: #e05555;
+    margin-top: 12px;
+    font-size: 13px;
+    min-height: 20px;
+  }
+
+  /* ===== MODE SELECT ===== */
+  #modeScreen {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 190;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .mode-title {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+  .mode-btn {
+    width: 260px;
+    padding: 18px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    font-size: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+  }
+  .mode-btn:hover {
+    border-color: var(--accent);
+    background: #1a1a1a;
+  }
+  .mode-btn span {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* ===== ALBUM LIST ===== */
+  #albumScreen {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 180;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .album-header {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+  }
+  .album-list {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .album-item {
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: border-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .album-item:hover { border-color: var(--accent); }
+  .album-item .arrow { color: var(--accent); font-size: 18px; }
+  .back-btn {
+    margin-bottom: 24px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    align-self: flex-start;
+  }
+  .back-btn:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* ===== LOADING ===== */
+  #loadingScreen {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 170;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .loader {
+    width: 36px; height: 36px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ===== GALLERY ===== */
+  #gallery {
+    display: none;
+    position: fixed; inset: 0;
+    background: #000;
+  }
+
+  #slideContainer {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .slide img, .slide video {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* אנימציות */
+  @keyframes slideInFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @keyframes slideInFromLeft  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  @keyframes slideOutToLeft   { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  @keyframes slideOutToRight  { from { transform: translateX(0); } to { transform: translateX(100%); } }
+
+  .enter-from-right { animation: slideInFromRight 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+  .enter-from-left  { animation: slideInFromLeft  0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+  .exit-to-left     { animation: slideOutToLeft   0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+  .exit-to-right    { animation: slideOutToRight  0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.4s;
+  }
+  #hud.hidden { opacity: 0; }
+
+  #counter {
+    position: absolute;
+    top: 18px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.55);
+    padding: 5px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.7);
+    backdrop-filter: blur(8px);
+  }
+
+  #controls {
+    position: absolute;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 10px;
+    background: rgba(0,0,0,0.55);
+    padding: 10px 18px;
+    border-radius: 40px;
+    backdrop-filter: blur(12px);
+    pointer-events: all;
+  }
+  .ctrl-btn {
+    width: 42px; height: 42px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 50%;
+    color: #fff;
+    font-size: 17px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,0.22); }
+  .ctrl-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  #albumName {
+    position: absolute;
+    bottom: 82px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* כפתור חזרה למצב */
+  #backToMode {
+    position: absolute;
+    top: 18px; right: 18px;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.6);
+    font-family: 'Heebo', sans-serif;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    pointer-events: all;
+    letter-spacing: 1px;
+  }
+  #backToMode:hover { color: #fff; }
+</style>
 </head>
 <body>
 
-    <div id="login-screen">
-        <h2>הכנס סיסמה למסגרת:</h2>
-        <input type="password" id="password-input" placeholder="סיסמה...">
-        <button onclick="startApp()">התחבר</button>
-        <div id="error-msg" style="color: red;"></div>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-title">גלריה</div>
+    <div class="login-subtitle">משפחתית</div>
+    <div class="login-input-wrap">
+      <input type="password" id="passInput" placeholder="••••" maxlength="20" />
     </div>
+    <button class="login-btn" onclick="login()">כניסה</button>
+    <div id="loginError"></div>
+  </div>
+</div>
 
-    <div id="status-msg"></div>
+<!-- MODE SELECT -->
+<div id="modeScreen">
+  <div class="mode-title">בחר מצב תצוגה</div>
+  <button class="mode-btn" onclick="startAll()">
+    כל התמונות
+    <span>כל האלבומים מעורבבים</span>
+  </button>
+  <button class="mode-btn" onclick="showAlbums()">
+    בחר אלבום
+    <span>בחר אלבום ספציפי</span>
+  </button>
+</div>
 
-    <div id="media-container">
-        <div id="controls">
-            <button class="control-btn" id="rotate-btn" onclick="rotateCurrentMedia()">🔄 סובב 90°</button>
-        </div>
+<!-- ALBUM LIST -->
+<div id="albumScreen">
+  <button class="back-btn" onclick="backToMode()">← חזרה</button>
+  <div class="album-header">בחר אלבום</div>
+  <div class="album-list" id="albumList"></div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div class="loader"></div>
+  <div class="loading-text">טוען תמונות</div>
+</div>
+
+<!-- GALLERY -->
+<div id="gallery">
+  <div id="slideContainer"></div>
+  <div id="hud">
+    <div id="counter">1 / 1</div>
+    <div id="albumName"></div>
+    <button id="backToMode" onclick="returnToMode()">☰ תפריט</button>
+    <div id="controls">
+      <button class="ctrl-btn" onclick="prevSlide()" title="הקודם">‹</button>
+      <button class="ctrl-btn" id="playBtn" onclick="togglePlay()" title="עצור/המשך">⏸</button>
+      <button class="ctrl-btn" onclick="rotateCurrentMedia()" title="סובב">↻</button>
+      <button class="ctrl-btn" onclick="nextSlide()" title="הבא">›</button>
     </div>
+  </div>
+</div>
 
-    <script>
-        // --- הגדרות ---
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyWmJTYGlw9R_nUkiSFmDTbmd9WGhlbHXEO6qnCsUJrD8Pvt2b6-zD9snSLUaKXsdGl2Q/exec'; 
-        const SLIDE_DURATION = 3000; // 3 שניות לתמונה
-        
-        let mediaData = [];
-        let currentIndex = 0;
-        let isPlaying = true;
-        let slideTimer;
-        let currentElement = null;
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzq-0mtlHpwYireHVBkAsnL0D_5U2V3X2C65hIYHW1bf6Rwzih0ysBo5LPMhkA30qr3/exec";
+const INTERVAL   = 3000;
 
-        // משתנים לזיהוי החלקה (Swipe)
-        let touchStartX = 0;
-        let touchEndX = 0;
+let password   = "";
+let photos     = [];
+let current    = 0;
+let playing    = true;
+let timer      = null;
+let rotations  = {};
+let albums     = [];
+let hudTimeout = null;
+let touchX     = 0;
+let transitioning = false;
 
-        async function startApp() {
-            const pass = document.getElementById('password-input').value;
-            if(!pass) return;
+// ===== HELPERS =====
+function show(id)  { const el = document.getElementById(id); el.style.display = "flex"; }
+function hide(id)  { const el = document.getElementById(id); el.style.display = "none"; }
 
-            document.getElementById('error-msg').innerText = "טוען נתונים...";
-            
-            try {
-                // הוספת redirect: 'follow' עוזרת לדפדפן להתמודד עם הפניות של גוגל
-                const response = await fetch(`${APPS_SCRIPT_URL}?pass=${encodeURIComponent(pass)}`, { redirect: 'follow' });
-                const result = await response.json();
+async function api(params) {
+  params.pass = password;
+  const url = new URL(SCRIPT_URL);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const r = await fetch(url.toString());
+  return r.json();
+}
 
-                if (result.error) {
-                    // הצגת השגיאה האמיתית שמגיעה מהשרת
-                    document.getElementById('error-msg').innerText = result.error.includes("Incorrect Password") ? "סיסמה שגויה!" : result.error;
-                } else if (result.success && result.data.length > 0) {
-                    mediaData = result.data;
-                    document.getElementById('login-screen').style.display = 'none';
-                    document.getElementById('media-container').style.display = 'flex';
-                    setupTouchEvents();
-                    setupClickEvent();
-                    showMedia(currentIndex);
-                } else {
-                    document.getElementById('error-msg').innerText = "לא נמצאו תמונות באלבום.";
-                }
-            } catch (err) {
-                console.error("Fetch Error:", err);
-                document.getElementById('error-msg').innerText = "שגיאת תקשורת. בדוק את מסוף המפתחים (F12).";
-            }
-        }
-        function showMedia(index) {
-            clearTimeout(slideTimer); // עצירת הטיימר הקודם
-            const container = document.getElementById('media-container');
-            const item = mediaData[index];
-            
-            // הסרת האלמנט הקודם (אם קיים)
-            if (currentElement) {
-                currentElement.remove();
-            }
+// ===== LOGIN =====
+document.getElementById("passInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") login();
+});
 
-            // שליפת זווית הסיבוב מהזיכרון המקומי
-            let rotation = localStorage.getItem('rot_' + item.id) || 0;
+async function login() {
+  const pass = document.getElementById("passInput").value.trim();
+  if (!pass) return;
+  password = pass;
+  document.getElementById("loginError").textContent = "";
 
-            if (item.type === 'video') {
-                currentElement = document.createElement('video');
-                currentElement.src = item.url;
-                currentElement.autoplay = true;
-                currentElement.controls = false; 
-                currentElement.muted = false; // כיוון שהמשתמש כבר לחץ במסך כדי להכניס סיסמה, ניתן להפעיל שמע
-                
-                // כשהסרטון מסתיים - עבור לבא
-                currentElement.onended = () => { if(isPlaying) nextSlide(); };
-                
-                // טיפול בשגיאות טעינת סרטון
-                currentElement.onerror = () => { if(isPlaying) nextSlide(); };
+  try {
+    const res = await api({ action: "getRotations" });
+    if (res.error === "Unauthorized") {
+      document.getElementById("loginError").textContent = "סיסמה שגויה";
+      password = "";
+      return;
+    }
+    rotations = res.rotations || {};
 
-            } else {
-                currentElement = document.createElement('img');
-                currentElement.src = item.url;
-                
-                // אם זה תמונה וכרגע מנגנים, הפעל טיימר ל-3 שניות
-                if (isPlaying) {
-                    slideTimer = setTimeout(nextSlide, SLIDE_DURATION);
-                }
-            }
+    // טעינת אלבומים ברקע
+    const albumRes = await api({ action: "getAlbums" });
+    albums = albumRes.albums || [];
+    buildAlbumList();
 
-            currentElement.className = 'media-item';
-            currentElement.style.transform = `rotate(${rotation}deg)`;
-            
-            // הוספת האלמנט למסך (לפני כפתורי השליטה)
-            container.insertBefore(currentElement, document.getElementById('controls'));
-        }
+    hide("loginScreen");
+    show("modeScreen");
+  } catch(err) {
+    document.getElementById("loginError").textContent = "שגיאת חיבור";
+  }
+}
 
-        function nextSlide() {
-            currentIndex = (currentIndex + 1) % mediaData.length;
-            showMedia(currentIndex);
-        }
+// ===== MODE =====
+function backToMode() { show("modeScreen"); }
+function returnToMode() {
+  stopTimer();
+  clearSlide();
+  hide("gallery");
+  show("modeScreen");
+}
 
-        function prevSlide() {
-            currentIndex = (currentIndex - 1 + mediaData.length) % mediaData.length;
-            showMedia(currentIndex);
-        }
+// ===== ALBUMS =====
+function buildAlbumList() {
+  const list = document.getElementById("albumList");
+  list.innerHTML = "";
+  albums.forEach(a => {
+    const div = document.createElement("div");
+    div.className = "album-item";
+    div.innerHTML = `<span>${a.name}</span><span class="arrow">←</span>`;
+    div.onclick = () => startAlbum(a.id, a.name);
+    list.appendChild(div);
+  });
+}
 
-        function togglePlayPause() {
-            isPlaying = !isPlaying;
-            document.getElementById('status-msg').innerText = isPlaying ? "" : "⏸️ הושהה";
-            
-            if (isPlaying) {
-                if (mediaData[currentIndex].type === 'image') {
-                    nextSlide(); // מעבר מיידי וחידוש הריצה
-                } else if (currentElement && currentElement.tagName === 'VIDEO') {
-                    currentElement.play();
-                }
-            } else {
-                clearTimeout(slideTimer);
-                if (currentElement && currentElement.tagName === 'VIDEO') {
-                    currentElement.pause();
-                }
-            }
-        }
+function showAlbums() {
+  hide("modeScreen");
+  show("albumScreen");
+}
 
-        function rotateCurrentMedia() {
-            const item = mediaData[currentIndex];
-            let currentRot = parseInt(localStorage.getItem('rot_' + item.id) || '0');
-            currentRot = (currentRot + 90) % 360;
-            
-            // שמירה בזיכרון והחלה על האלמנט
-            localStorage.setItem('rot_' + item.id, currentRot);
-            if(currentElement) {
-                currentElement.style.transform = `rotate(${currentRot}deg)`;
-            }
-        }
+// ===== START =====
+async function startAll() {
+  hide("modeScreen");
+  show("loadingScreen");
+  document.getElementById("albumName").textContent = "כל האלבומים";
+  try {
+    const res = await api({ action: "getAllPhotos" });
+    photos = res.photos || [];
+    startGallery();
+  } catch(e) {
+    alert("שגיאה בטעינה");
+    show("modeScreen");
+  }
+  hide("loadingScreen");
+}
 
-        // --- ניהול אירועי מגע (החלקה) ---
-        function setupTouchEvents() {
-            const container = document.getElementById('media-container');
-            container.addEventListener('touchstart', e => {
-                touchStartX = e.changedTouches[0].screenX;
-            });
-            container.addEventListener('touchend', e => {
-                touchEndX = e.changedTouches[0].screenX;
-                handleSwipe();
-            });
-        }
+async function startAlbum(id, name) {
+  hide("albumScreen");
+  show("loadingScreen");
+  document.getElementById("albumName").textContent = name;
+  try {
+    const res = await api({ action: "getPhotos", albumId: id });
+    photos = res.photos || [];
+    startGallery();
+  } catch(e) {
+    alert("שגיאה בטעינה");
+    show("albumScreen");
+  }
+  hide("loadingScreen");
+}
 
-        function handleSwipe() {
-            const threshold = 50; // מינימום מרחק כדי להחשב כהחלקה
-            if (touchEndX < touchStartX - threshold) {
-                // החלקה שמאלה (תמונה הבאה)
-                nextSlide();
-            } else if (touchEndX > touchStartX + threshold) {
-                // החלקה ימינה (תמונה קודמת)
-                prevSlide();
-            }
-        }
+function startGallery() {
+  if (!photos.length) { alert("לא נמצאו תמונות"); show("modeScreen"); return; }
+  current  = 0;
+  playing  = true;
+  document.getElementById("playBtn").textContent = "⏸";
+  show("gallery");
+  renderSlide(current);
+  scheduleNext();
+}
 
-        // --- לחיצה במרכז המסך ---
-        function setupClickEvent() {
-            const container = document.getElementById('media-container');
-            container.addEventListener('click', function(e) {
-                // מונע מהלחיצה על כפתור הסיבוב לעצור את התצוגה
-                if(e.target.tagName !== 'BUTTON') {
-                    togglePlayPause();
-                }
-            });
-        }
-    </script>
+// ===== SLIDE ENGINE =====
+function clearSlide() {
+  document.getElementById("slideContainer").innerHTML = "";
+}
+
+function renderSlide(idx, direction) {
+  if (transitioning) return;
+  const container = document.getElementById("slideContainer");
+  const item = photos[idx];
+  if (!item) return;
+
+  const oldSlide = container.querySelector(".slide");
+
+  const slide = document.createElement("div");
+  slide.className = "slide";
+
+  let el;
+  if (item.isVideo) {
+    el = document.createElement("video");
+    el.src = item.url;
+    el.autoplay = true;
+    el.controls = false;
+    el.playsInline = true;
+    el.addEventListener("ended", () => { if (playing) nextSlide(); });
+    el.addEventListener("error", () => { if (playing) setTimeout(nextSlide, 500); });
+  } else {
+    el = document.createElement("img");
+    el.src = item.url;
+    el.onerror = () => { if (playing) setTimeout(nextSlide, 500); };
+  }
+
+  const rot = rotations[item.id] || 0;
+  el.style.transform = `rotate(${rot}deg)`;
+  el.dataset.mediaId  = item.id;
+
+  slide.appendChild(el);
+
+  if (oldSlide && direction) {
+    transitioning = true;
+    oldSlide.classList.add(direction === "next" ? "exit-to-left" : "exit-to-right");
+    slide.classList.add(direction === "next" ? "enter-from-right" : "enter-from-left");
+    container.appendChild(slide);
+    setTimeout(() => {
+      oldSlide.remove();
+      transitioning = false;
+    }, 400);
+  } else {
+    if (oldSlide) oldSlide.remove();
+    container.appendChild(slide);
+  }
+
+  updateCounter();
+}
+
+function updateCounter() {
+  document.getElementById("counter").textContent = `${current + 1} / ${photos.length}`;
+}
+
+// ===== NAVIGATION =====
+function nextSlide() {
+  stopTimer();
+  current = (current + 1) % photos.length;
+  renderSlide(current, "next");
+  if (playing && !photos[current]?.isVideo) scheduleNext();
+}
+
+function prevSlide() {
+  stopTimer();
+  current = (current - 1 + photos.length) % photos.length;
+  renderSlide(current, "prev");
+  if (playing && !photos[current]?.isVideo) scheduleNext();
+  showHud();
+}
+
+function scheduleNext() {
+  stopTimer();
+  if (!playing) return;
+  const item = photos[current];
+  if (item?.isVideo) return; // סרטון ינווט לבד כשיסיים
+  timer = setTimeout(nextSlide, INTERVAL);
+}
+
+function stopTimer() {
+  if (timer) { clearTimeout(timer); timer = null; }
+}
+
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById("playBtn");
+  btn.textContent = playing ? "⏸" : "▶";
+  btn.classList.toggle("active", !playing);
+
+  const vid = document.querySelector("#slideContainer video");
+  if (playing) {
+    if (vid) vid.play();
+    scheduleNext();
+  } else {
+    stopTimer();
+    if (vid) vid.pause();
+  }
+  showHud();
+}
+
+// ===== ROTATE =====
+async function rotateCurrentMedia() {
+  const item = photos[current];
+  if (!item) return;
+  const cur  = rotations[item.id] || 0;
+  const next = (cur + 90) % 360;
+  rotations[item.id] = next;
+
+  const el = document.querySelector("#slideContainer .slide img, #slideContainer .slide video");
+  if (el) el.style.transform = `rotate(${next}deg)`;
+
+  api({ action: "setRotation", id: item.id, rotation: next });
+  showHud();
+}
+
+// ===== HUD =====
+function showHud() {
+  const hud = document.getElementById("hud");
+  hud.classList.remove("hidden");
+  clearTimeout(hudTimeout);
+  hudTimeout = setTimeout(() => hud.classList.add("hidden"), 3500);
+}
+
+// ===== TOUCH =====
+document.getElementById("slideContainer").addEventListener("touchstart", e => {
+  touchX = e.touches[0].clientX;
+}, { passive: true });
+
+document.getElementById("slideContainer").addEventListener("touchend", e => {
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) {
+    // RTL: החלקה ימינה = תמונה קודמת
+    dx > 0 ? prevSlide() : nextSlide();
+  } else {
+    // לחיצה באמצע - עצור/המשך
+    togglePlay();
+  }
+  showHud();
+}, { passive: true });
+
+document.getElementById("slideContainer").addEventListener("click", e => {
+  const w = e.currentTarget.offsetWidth;
+  const x = e.clientX;
+  if (x < w * 0.25)      prevSlide();
+  else if (x > w * 0.75) nextSlide();
+  else                   togglePlay();
+  showHud();
+});
+
+// ===== KEYBOARD =====
+document.addEventListener("keydown", e => {
+  if (document.getElementById("gallery").style.display === "none") return;
+  if (e.key === "ArrowRight") prevSlide();
+  if (e.key === "ArrowLeft")  nextSlide();
+  if (e.key === " ")          { e.preventDefault(); togglePlay(); }
+  if (e.key === "r")          rotateCurrentMedia();
+  showHud();
+});
+
+// הצג HUD בתנועת עכבר
+document.addEventListener("mousemove", () => {
+  if (document.getElementById("gallery").style.display !== "none") showHud();
+});
+</script>
 </body>
 </html>
