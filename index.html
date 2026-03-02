@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מסגרת תמונות חכמה</title>
+    <title>מצגת תמונות ווידאו חכמה</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     
@@ -19,23 +19,19 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: #000;
+            background: #000; /* שחור נקי, בלי כחול */
         }
 
-        /* הגדרות התמונה */
-        .photo {
+        .photo, video {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
             transition: transform 0.4s ease-in-out;
         }
 
-        /* מחלקת סיבוב ב-90 מעלות */
-        .rotate-90 {
-            transform: rotate(90deg);
-        }
+        .rotate-90 { transform: rotate(90deg); }
 
-        /* כפתורי שליטה צפים (יופיעו רק כשנוגעים במסך) */
+        /* כפתורי שליטה שמופיעים רק בנגיעה */
         .controls {
             position: fixed;
             bottom: 30px;
@@ -47,120 +43,131 @@
             opacity: 0;
             transition: opacity 0.5s;
         }
-        /* הצגת כפתורים רק כשנוגעים במסך */
-body:active .controls, body:hover .controls {
-    opacity: 1;
-}
+        body:hover .controls, body:active .controls { opacity: 1; }
+
         .btn {
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(255, 255, 255, 0.15);
             color: white;
             border: 1px solid rgba(255,255,255,0.3);
-            padding: 12px 20px;
+            padding: 10px 20px;
             border-radius: 30px;
             cursor: pointer;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(5px);
         }
 
-        /* הודעת טעינה */
         #loader {
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            text-align: center;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
 
-    <div id="loader">מתחבר לאלבום ותולש תמונות...</div>
+    <div id="loader">טוען את המדיה...</div>
 
     <div class="swiper">
-        <div class="swiper-wrapper" id="image-container">
-            </div>
+        <div class="swiper-wrapper" id="image-container"></div>
     </div>
 
     <div class="controls">
-        <button class="btn" onclick="rotateCurrent()">סובב תמונה 🔄</button>
+        <button class="btn" onclick="rotateCurrent()">סובב 🔄</button>
         <button class="btn" id="playPauseBtn" onclick="togglePlay()">עצור ⏸️</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
     <script>
-        // --- הגדרות אישיות (חובה לעדכן!) ---
+        // --- הגדרות חיבור ---
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi4FoqMU79jny5VU2T0Xqk8-QQ5MnvRFSXBYRlSPhIhBd34pj1XomM7zrjUyLRcTk6ow/exec";
         const KEY = "1234";
-        // ----------------------------------
+        const REPO_URL = "https://adielkapah.github.io/slideshow/"; 
+        // --------------------
 
         let swiper;
+        let slideTimeout;
 
-        async function fetchImages() {
+        async function fetchMedia() {
             try {
                 const response = await fetch(`${SCRIPT_URL}?key=${KEY}`);
-                const images = await response.json();
+                const items = await response.json();
                 
-                if (images && images.length > 0) {
-                    renderSlideshow(images);
+                if (items && items.length > 0) {
+                    renderSlideshow(items);
                     document.getElementById('loader').style.display = 'none';
                 } else {
-                    document.getElementById('loader').innerText = "לא נמצאו תמונות באלבום.";
+                    document.getElementById('loader').innerText = "לא נמצאה מדיה באלבום.";
                 }
             } catch (error) {
-                console.error("Error fetching images:", error);
-                document.getElementById('loader').innerText = "שגיאה בחיבור לשרת.";
+                document.getElementById('loader').innerText = "שגיאה בחיבור לסקריפט.";
             }
         }
 
-        function renderSlideshow(imageUrls) {
+        function renderSlideshow(items) {
             const container = document.getElementById('image-container');
-            container.innerHTML = imageUrls.map(url => `
-                <div class="swiper-slide">
-                    <img src="${url}" class="photo">
-                </div>
-            `).join('');
+            container.innerHTML = items.map(item => {
+                const isVideo = item.isVideo || item.url.includes('video');
+                return `
+                    <div class="swiper-slide" data-is-video="${isVideo}">
+                        ${isVideo ? 
+                            `<video src="${item.url}=dv" class="photo" muted playsinline></video>` : 
+                            `<img src="${item.url}=w2048" class="photo">`
+                        }
+                    </div>
+                `;
+            }).join('');
 
-            // אתחול הקרוסלה
             swiper = new Swiper('.swiper', {
                 loop: true,
                 speed: 1000,
-                autoplay: {
-                    delay: 3000, // מעבר כל 3 שניות
-                    disableOnInteraction: false,
-                },
-                navigation: {
-                    nextEl: null,
-                    prevEl: null,
-                },
-                // לחיצה באמצע עוצרת/מפעילה
                 on: {
-                    click: function () {
-                        togglePlay();
-                    }
+                    init: function() { handleSlideChange(this); },
+                    slideChange: function() { handleSlideChange(this); }
                 }
             });
         }
 
+        function handleSlideChange(s) {
+            const activeSlide = s.slides[s.activeIndex];
+            if (!activeSlide) return;
+
+            const isVideo = activeSlide.getAttribute('data-is-video') === 'true';
+            const video = activeSlide.querySelector('video');
+
+            if (slideTimeout) clearTimeout(slideTimeout);
+
+            if (isVideo && video) {
+                video.currentTime = 0;
+                video.play().catch(e => console.log("Auto-play blocked"));
+                video.onended = () => { s.slideNext(); };
+            } else {
+                slideTimeout = setTimeout(() => {
+                    if (s.autoplay && !s.autoplay.running) return; 
+                    s.slideNext();
+                }, 3000);
+            }
+        }
+
         function togglePlay() {
             const btn = document.getElementById('playPauseBtn');
-            if (swiper.autoplay.running) {
-                swiper.autoplay.stop();
-                btn.innerText = "הפעל ▶️";
+            if (slideTimeout || document.querySelector('video')) {
+                // לוגיקה פשוטה לעצירה: אם יש טיימר, נבטל אותו
+                clearTimeout(slideTimeout);
+                slideTimeout = null;
+                btn.innerText = "נגן ▶️";
             } else {
-                swiper.autoplay.start();
-                btn.innerText = "עצור ⏸️";
+                location.reload(); // רענון פשוט להחזרת הריצה
             }
         }
 
         function rotateCurrent() {
             const activeSlide = document.querySelector('.swiper-slide-active .photo');
-            if (activeSlide) {
-                activeSlide.classList.toggle('rotate-90');
-            }
+            if (activeSlide) activeSlide.classList.toggle('rotate-90');
         }
 
-        // הפעלה ראשונית
-        fetchImages();
+        fetchMedia();
     </script>
 </body>
 </html>
