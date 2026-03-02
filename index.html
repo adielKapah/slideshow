@@ -73,11 +73,13 @@
             document.getElementById('error-msg').innerText = "טוען נתונים...";
             
             try {
-                const response = await fetch(`${APPS_SCRIPT_URL}?pass=${encodeURIComponent(pass)}`);
+                // הוספת redirect: 'follow' עוזרת לדפדפן להתמודד עם הפניות של גוגל
+                const response = await fetch(`${APPS_SCRIPT_URL}?pass=${encodeURIComponent(pass)}`, { redirect: 'follow' });
                 const result = await response.json();
 
                 if (result.error) {
-                    document.getElementById('error-msg').innerText = "סיסמה שגויה!";
+                    // הצגת השגיאה האמיתית שמגיעה מהשרת
+                    document.getElementById('error-msg').innerText = result.error.includes("Incorrect Password") ? "סיסמה שגויה!" : result.error;
                 } else if (result.success && result.data.length > 0) {
                     mediaData = result.data;
                     document.getElementById('login-screen').style.display = 'none';
@@ -86,13 +88,13 @@
                     setupClickEvent();
                     showMedia(currentIndex);
                 } else {
-                    document.getElementById('error-msg').innerText = "לא נמצאו תמונות בתיקייה.";
+                    document.getElementById('error-msg').innerText = "לא נמצאו תמונות באלבום.";
                 }
             } catch (err) {
-                document.getElementById('error-msg').innerText = "שגיאת תקשורת עם השרת.";
+                console.error("Fetch Error:", err);
+                document.getElementById('error-msg').innerText = "שגיאת תקשורת. בדוק את מסוף המפתחים (F12).";
             }
         }
-
         function showMedia(index) {
             clearTimeout(slideTimer); // עצירת הטיימר הקודם
             const container = document.getElementById('media-container');
