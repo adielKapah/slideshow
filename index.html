@@ -1,1501 +1,164 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#000000">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>SlideDream — Photo Slideshow</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0a0a0a;
-    --surface: #141414;
-    --surface2: #1e1e1e;
-    --border: rgba(255,255,255,0.08);
-    --text: #f0ece4;
-    --text-dim: rgba(240,236,228,0.5);
-    --accent: #c8a96e;
-    --accent2: #8fb8d4;
-    --danger: #e07070;
-    --radius: 16px;
-    --transition-speed: 5s;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מסגרת תמונות חכמה</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background: #000; overflow: hidden; font-family: sans-serif;
+        }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        .swiper { width: 100%; height: 100%; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    height: 100dvh;
-    overflow: hidden;
-    user-select: none;
-  }
+        .swiper-slide {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
 
-  /* ── SCREENS ── */
-  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; transition: opacity 0.4s; }
-  .screen.hidden { opacity: 0; pointer-events: none; }
+        /* הגדרות התמונה */
+        .photo {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.4s ease-in-out;
+        }
 
-  /* ── LOGIN SCREEN ── */
-  #loginScreen {
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a1408 0%, #0a0a0a 100%);
-  }
+        /* מחלקת סיבוב ב-90 מעלות */
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
 
-  .login-inner { text-align: center; padding: 40px; max-width: 400px; }
+        /* כפתורי שליטה צפים (יופיעו רק כשנוגעים במסך) */
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 20px;
+            opacity: 0.2;
+            transition: opacity 0.3s;
+        }
+        .controls:hover { opacity: 1; }
 
-  .logo {
-    font-family: 'DM Serif Display', serif;
-    font-size: clamp(2.5rem, 8vw, 4rem);
-    color: var(--accent);
-    letter-spacing: -1px;
-    margin-bottom: 8px;
-  }
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 12px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
 
-  .logo-sub {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-bottom: 48px;
-  }
-
-  .google-btn {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 50px;
-    padding: 14px 28px;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin: 0 auto 16px;
-  }
-  .google-btn:hover { background: #2a2a2a; border-color: var(--accent); }
-  .google-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
-
-  .demo-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.85rem;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    padding: 8px;
-  }
-  .demo-btn:hover { color: var(--text); }
-
-  .setup-note {
-    margin-top: 32px;
-    padding: 16px;
-    background: rgba(200,169,110,0.08);
-    border: 1px solid rgba(200,169,110,0.2);
-    border-radius: 12px;
-    font-size: 0.78rem;
-    color: var(--text-dim);
-    line-height: 1.6;
-    text-align: right;
-  }
-  .setup-note strong { color: var(--accent); }
-
-  /* ── ALBUM PICKER ── */
-  #albumScreen {
-    background: var(--bg);
-  }
-
-  .top-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .top-bar-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 1.4rem;
-    color: var(--accent);
-  }
-
-  .icon-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: var(--text);
-  }
-  .icon-btn:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
-  .icon-btn svg { width: 18px; height: 18px; }
-
-  .albums-grid {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-    align-content: start;
-  }
-
-  .album-card {
-    aspect-ratio: 1;
-    border-radius: 12px;
-    overflow: hidden;
-    position: relative;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-  }
-  .album-card:hover { transform: scale(1.03); border-color: var(--accent); }
-  .album-card img { width: 100%; height: 100%; object-fit: cover; }
-  .album-card-label {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    padding: 24px 10px 10px;
-    font-size: 0.82rem;
-    font-weight: 500;
-  }
-  .album-card-count {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    margin-top: 2px;
-  }
-
-  .album-placeholder {
-    background: var(--surface2);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: var(--text-dim);
-    font-size: 0.8rem;
-  }
-
-  /* ── SLIDESHOW SCREEN ── */
-  #slideshowScreen {
-    background: #000;
-    position: relative;
-  }
-
-  #slideContainer {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-  }
-
-  .slide {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-  }
-  .slide.active { opacity: 1; }
-  .slide img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    display: block;
-    transition: transform 0.3s;
-  }
-  .slide.smart-fit img { object-fit: cover; width: 100%; height: 100%; }
-
-  /* transitions */
-  .slide.transition-fade { transition: opacity 1s ease; }
-  .slide.transition-zoom { transition: opacity 0.8s ease, transform 0.8s ease; }
-  .slide.transition-zoom.entering { transform: scale(1.08); opacity: 0; }
-  .slide.transition-zoom.active { transform: scale(1); opacity: 1; }
-  .slide.transition-slide-h { transition: opacity 0.6s ease, transform 0.6s ease; }
-
-  /* ── HUD (heads-up display) ── */
-  #hud {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  #topHud {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    background: linear-gradient(rgba(0,0,0,0.6), transparent);
-    opacity: 0;
-    transition: opacity 0.4s;
-    pointer-events: all;
-  }
-  #hud.visible #topHud { opacity: 1; }
-
-  #bottomHud {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 16px 20px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.7));
-    opacity: 0;
-    transition: opacity 0.4s;
-    pointer-events: all;
-  }
-  #hud.visible #bottomHud { opacity: 1; }
-
-  .hud-row { display: flex; align-items: center; gap: 10px; }
-  .hud-row.right { justify-content: flex-end; }
-  .hud-row.center { justify-content: center; }
-
-  #progressBar {
-    flex: 1;
-    height: 3px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  #progressFill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    width: 0%;
-    transition: width linear;
-  }
-
-  .slide-counter {
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.7);
-    white-space: nowrap;
-  }
-
-  .hud-btn {
-    background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 50%;
-    width: 44px; height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: white;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  .hud-btn:hover { background: rgba(0,0,0,0.8); border-color: var(--accent); }
-  .hud-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
-  .hud-btn svg { width: 20px; height: 20px; }
-
-  #pauseIcon, #playIcon { display: none; }
-
-  #centerPauseIndicator {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%,-50%) scale(0);
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(12px);
-    border-radius: 50%;
-    width: 80px; height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    z-index: 20;
-  }
-  #centerPauseIndicator.show { transform: translate(-50%,-50%) scale(1); }
-  #centerPauseIndicator svg { width: 36px; height: 36px; color: white; }
-
-  /* ── SETTINGS PANEL ── */
-  #settingsPanel {
-    position: absolute;
-    bottom: 0; right: 0;
-    width: min(360px, 100vw);
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
-    border-radius: var(--radius) 0 0 0;
-    z-index: 100;
-    transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    overflow-y: auto;
-    max-height: 80dvh;
-  }
-  #settingsPanel.open { transform: translateY(0); }
-
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 20px 16px;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    background: var(--surface);
-    z-index: 1;
-  }
-  .panel-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 1.1rem;
-    color: var(--accent);
-  }
-
-  .setting-group {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .setting-label {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-  .setting-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 10px;
-  }
-  .setting-row:last-child { margin-bottom: 0; }
-  .setting-name { font-size: 0.9rem; }
-  .setting-value { font-size: 0.85rem; color: var(--accent); font-weight: 500; min-width: 40px; text-align: left; }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 4px;
-    background: var(--surface2);
-    border-radius: 2px;
-    outline: none;
-    margin-top: 8px;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px; height: 18px;
-    background: var(--accent);
-    border-radius: 50%;
-    cursor: pointer;
-  }
-
-  .chip-group { display: flex; gap: 8px; flex-wrap: wrap; }
-  .chip {
-    padding: 6px 14px;
-    border-radius: 50px;
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    font-size: 0.82rem;
-    cursor: pointer;
-    color: var(--text-dim);
-    transition: all 0.2s;
-    font-family: 'DM Sans', sans-serif;
-  }
-  .chip.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 500; }
-
-  .toggle {
-    width: 44px; height: 24px;
-    background: var(--surface2);
-    border-radius: 12px;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-    flex-shrink: 0;
-  }
-  .toggle.on { background: var(--accent); }
-  .toggle::after {
-    content: '';
-    position: absolute;
-    top: 3px; left: 3px;
-    width: 18px; height: 18px;
-    background: white;
-    border-radius: 50%;
-    transition: left 0.2s;
-  }
-  .toggle.on::after { left: 23px; }
-
-  /* ── HIDDEN PHOTOS PANEL ── */
-  #hiddenPanel {
-    position: absolute;
-    inset: 0;
-    background: var(--bg);
-    z-index: 200;
-    transform: translateX(100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    display: flex;
-    flex-direction: column;
-  }
-  #hiddenPanel.open { transform: translateX(0); }
-
-  .hidden-grid {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    align-content: start;
-  }
-
-  .hidden-thumb {
-    aspect-ratio: 1;
-    border-radius: 8px;
-    overflow: hidden;
-    position: relative;
-    opacity: 0.5;
-  }
-  .hidden-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .unhide-btn {
-    position: absolute;
-    top: 4px; right: 4px;
-    background: rgba(0,0,0,0.7);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    color: white;
-  }
-  .unhide-btn svg { width: 14px; height: 14px; }
-
-  /* overlay when settings open */
-  #overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 99;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-  }
-  #overlay.show { opacity: 1; pointer-events: all; }
-
-  /* loading */
-  .spinner {
-    width: 32px; height: 32px;
-    border: 3px solid rgba(200,169,110,0.2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-center {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-  }
-
-  /* swipe hint */
-  #swipeHint {
-    position: absolute;
-    bottom: 80px; left: 0; right: 0;
-    text-align: center;
-    font-size: 0.78rem;
-    color: rgba(255,255,255,0.4);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s;
-  }
-  #swipeHint.show { opacity: 1; }
-
-  /* zoom indicator */
-  #zoomIndicator {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%,-50%);
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(8px);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    color: white;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
-    z-index: 30;
-  }
-  #zoomIndicator.show { opacity: 1; }
-
-  /* error toast */
-  #toast {
-    position: absolute;
-    bottom: 100px; left: 50%; transform: translateX(-50%);
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 10px 20px;
-    font-size: 0.85rem;
-    color: var(--text);
-    z-index: 500;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-    white-space: nowrap;
-  }
-  #toast.show { opacity: 1; }
-
-  /* scrollbar style */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  @media (orientation: landscape) {
-    .albums-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-  }
-</style>
+        /* הודעת טעינה */
+        #loader {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
 
-<!-- ══ LOGIN SCREEN ══ -->
-<div class="screen" id="loginScreen">
-  <div class="login-inner">
-    <div class="logo">SlideDream</div>
-    <div class="logo-sub">Photo Slideshow</div>
+    <div id="loader">מתחבר לאלבום ותולש תמונות...</div>
 
-    <button class="google-btn" onclick="signInWithGoogle()">
-      <svg viewBox="0 0 48 48">
-        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-      </svg>
-      התחבר עם Google
-    </button>
-
-    <button class="demo-btn" onclick="loadDemoPhotos()">השתמש בתמונות דמו</button>
-
-    <div class="setup-note">
-      <strong>📋 הגדרה ראשונית נדרשת:</strong><br>
-      לחיבור Google Photos אמיתי יש להגדיר Google Cloud Project עם Photos Library API ולהכניס את ה-Client ID בקוד. ראה הוראות בתחתית הדף.
-    </div>
-  </div>
-</div>
-
-<!-- ══ ALBUM SCREEN ══ -->
-<div class="screen hidden" id="albumScreen">
-  <div class="top-bar">
-    <div class="top-bar-title">האלבומים שלי</div>
-    <div style="display:flex;gap:8px">
-      <div class="icon-btn" onclick="openHiddenPanel()" title="תמונות מוסתרות">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-      </div>
-      <div class="icon-btn" onclick="signOut()" title="יציאה">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </div>
-    </div>
-  </div>
-  <div class="albums-grid" id="albumsGrid">
-    <div class="loading-center" style="grid-column:1/-1">
-      <div class="spinner"></div>
-      <span>טוען אלבומים...</span>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SLIDESHOW SCREEN ══ -->
-<div class="screen hidden" id="slideshowScreen">
-  <div id="slideContainer"></div>
-  <div id="swipeHint">← החלק לניווט בין תמונות →</div>
-
-  <div id="hud">
-    <div id="topHud">
-      <div class="icon-btn" onclick="goBackToAlbums()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      </div>
-      <div style="font-family:'DM Serif Display',serif;font-size:1rem;color:var(--accent)" id="albumTitle"></div>
-      <div class="icon-btn" onclick="toggleSettings()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </div>
+    <div class="swiper">
+        <div class="swiper-wrapper" id="image-container">
+            </div>
     </div>
 
-    <div id="bottomHud">
-      <div class="hud-row">
-        <div id="progressBar"><div id="progressFill"></div></div>
-        <span class="slide-counter" id="slideCounter">1 / 1</span>
-      </div>
-      <div class="hud-row center" style="gap:16px">
-        <div class="hud-btn" onclick="prevSlide()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-        </div>
-        <div class="hud-btn" onclick="togglePlay()" id="playPauseBtn">
-          <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="hud-btn" onclick="nextSlide()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="hud-btn danger" onclick="hideCurrentPhoto()" title="הסתר תמונה זו">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-        </div>
-        <div class="hud-btn" onclick="rotatePhoto()" title="סובב תמונה">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="centerPauseIndicator">
-    <svg id="centerPauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-  </div>
-
-  <div id="zoomIndicator"></div>
-  <div id="overlay" onclick="closeSettings()"></div>
-
-  <!-- SETTINGS PANEL -->
-  <div id="settingsPanel">
-    <div class="panel-header">
-      <span class="panel-title">הגדרות</span>
-      <div class="icon-btn" onclick="closeSettings()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </div>
+    <div class="controls">
+        <button class="btn" onclick="rotateCurrent()">סובב תמונה 🔄</button>
+        <button class="btn" id="playPauseBtn" onclick="togglePlay()">עצור ⏸️</button>
     </div>
 
-    <div class="setting-group">
-      <div class="setting-label">זמן מעבר בין תמונות</div>
-      <div class="setting-row">
-        <span class="setting-name">השהייה</span>
-        <span class="setting-value" id="delayVal">5s</span>
-      </div>
-      <input type="range" min="1" max="30" value="5" id="delaySlider" oninput="updateDelay(this.value)">
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">סוג מעבר</div>
-      <div class="chip-group" id="transitionChips">
-        <div class="chip active" data-val="fade" onclick="setTransition('fade',this)">Fade</div>
-        <div class="chip" data-val="zoom" onclick="setTransition('zoom',this)">Zoom</div>
-        <div class="chip" data-val="slide" onclick="setTransition('slide',this)">Slide</div>
-        <div class="chip" data-val="flip" onclick="setTransition('flip',this)">Flip</div>
-      </div>
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">תצוגת תמונה</div>
-      <div class="chip-group" id="fitChips">
-        <div class="chip active" data-val="smart" onclick="setFitMode('smart',this)">חכם</div>
-        <div class="chip" data-val="contain" onclick="setFitMode('contain',this)">רגיל</div>
-        <div class="chip" data-val="cover" onclick="setFitMode('cover',this)">מילוי</div>
-      </div>
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">זום</div>
-      <div class="setting-row">
-        <span class="setting-name">רמת זום</span>
-        <span class="setting-value" id="zoomVal">100%</span>
-      </div>
-      <input type="range" min="50" max="200" value="100" id="zoomSlider" oninput="updateZoom(this.value)">
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">סיבוב אוטומטי</div>
-      <div class="setting-row">
-        <span class="setting-name">תיקון כיוון לפי EXIF</span>
-        <div class="toggle on" id="autoRotateToggle" onclick="toggleAutoRotate(this)"></div>
-      </div>
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">ניגון</div>
-      <div class="setting-row">
-        <span class="setting-name">סדר אקראי</span>
-        <div class="toggle" id="shuffleToggle" onclick="toggleShuffle(this)"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- HIDDEN PHOTOS PANEL -->
-  <div id="hiddenPanel">
-    <div class="top-bar">
-      <div class="top-bar-title">תמונות מוסתרות</div>
-      <div class="icon-btn" onclick="closeHiddenPanel()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </div>
-    </div>
-    <div class="hidden-grid" id="hiddenGrid"></div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<script>
-// ══════════════════════════════════════════
-//  CONFIGURATION — הכנס את ה-Client ID שלך
-// ══════════════════════════════════════════
-const GOOGLE_CLIENT_ID = '280735772377-bh46tvoujlcdthft9ormtdsbaopho9h5.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
-
-// ══════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════
-let state = {
-  photos: [],
-  currentIndex: 0,
-  isPlaying: true,
-  isPaused: false,
-  settings: {
-    delay: 5,
-    transition: 'fade',
-    fitMode: 'smart',
-    zoom: 100,
-    autoRotate: true,
-    shuffle: false
-  },
-  rotations: {},   // per-photo rotation override
-  hiddenPhotos: JSON.parse(localStorage.getItem('hiddenPhotos') || '[]'),
-  accessToken: null,
-  hudTimeout: null,
-  timer: null,
-  progressStart: null,
-  progressDuration: 0,
-  progressRAF: null,
-  swipeStartX: 0,
-  swipeStartY: 0,
-  isSwiping: false,
-  activeSlideEl: null,
-  albumName: ''
-};
-
-// ══════════════════════════════════════════
-//  SCREEN NAVIGATION
-// ══════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-}
-
-// ══════════════════════════════════════════
-//  GOOGLE AUTH
-// ══════════════════════════════════════════
-function signInWithGoogle() {
-  if (GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE')) {
-    showToast('⚠️ יש להגדיר Google Client ID בקוד');
-    return;
-  }
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: location.origin + location.pathname,
-    response_type: 'token',
-    scope: SCOPES,
-  });
-  location.href = 'https://accounts.google.com/o/oauth2/auth?' + params;
-}
-
-function signOut() {
-  state.accessToken = null;
-  localStorage.removeItem('gToken');
-  showScreen('loginScreen');
-}
-
-function handleOAuthCallback() {
-  const hash = location.hash.substring(1);
-  const params = new URLSearchParams(hash);
-  const token = params.get('access_token');
-  if (token) {
-    state.accessToken = token;
-    localStorage.setItem('gToken', token);
-    history.replaceState(null, '', location.pathname);
-    loadAlbums();
-  } else {
-    const stored = localStorage.getItem('gToken');
-    if (stored) {
-      state.accessToken = stored;
-      loadAlbums();
-    }
-  }
-}
-
-// ══════════════════════════════════════════
-//  ALBUMS & PHOTOS
-// ══════════════════════════════════════════
-async function loadAlbums() {
-  showScreen('albumScreen');
-  const grid = document.getElementById('albumsGrid');
-  grid.innerHTML = '<div class="loading-center" style="grid-column:1/-1"><div class="spinner"></div><span>טוען אלבומים...</span></div>';
-
-  try {
-    const res = await fetch('https://photoslibrary.googleapis.com/v1/albums?pageSize=50', {
-      headers: { Authorization: 'Bearer ' + state.accessToken }
-    });
-    const data = await res.json();
-
-    if (data.error) {
-      if (data.error.code === 401) { state.accessToken = null; localStorage.removeItem('gToken'); showScreen('loginScreen'); return; }
-      throw new Error(data.error.message);
-    }
-
-    grid.innerHTML = '';
-    const albums = data.albums || [];
-
-    // Add "All Photos" option
-    const allCard = createAlbumCard({ id: '__all__', title: 'כל התמונות', coverPhotoBaseUrl: '', mediaItemsCount: '...' });
-    grid.appendChild(allCard);
-
-    albums.forEach(album => grid.appendChild(createAlbumCard(album)));
-  } catch (e) {
-    grid.innerHTML = `<div class="loading-center" style="grid-column:1/-1;color:var(--danger)">שגיאה: ${e.message}</div>`;
-  }
-}
-
-function createAlbumCard(album) {
-  const card = document.createElement('div');
-  card.className = 'album-card' + (album.coverPhotoBaseUrl ? '' : ' album-placeholder');
-  card.onclick = () => loadPhotosFromAlbum(album);
-
-  if (album.coverPhotoBaseUrl) {
-    card.innerHTML = `
-      <img src="${album.coverPhotoBaseUrl}=w320-h320-c" loading="lazy">
-      <div class="album-card-label">
-        ${album.title || 'ללא שם'}
-        <div class="album-card-count">${album.mediaItemsCount || ''} פריטים</div>
-      </div>`;
-  } else {
-    card.innerHTML = `
-      <svg style="width:40px;height:40px;opacity:0.3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      <span style="font-size:0.85rem;color:var(--text)">${album.title}</span>`;
-  }
-  return card;
-}
-
-async function loadPhotosFromAlbum(album) {
-  showScreen('slideshowScreen');
-  state.albumName = album.title || 'כל התמונות';
-  document.getElementById('albumTitle').textContent = state.albumName;
-
-  // Show loading
-  document.getElementById('slideContainer').innerHTML = '<div class="loading-center" style="color:var(--text-dim)"><div class="spinner"></div><span>טוען תמונות...</span></div>';
-
-  try {
-    let photos = [];
-    let pageToken = '';
-
-    if (album.id === '__all__') {
-      do {
-        const body = { pageSize: 100 };
-        if (pageToken) body.pageToken = pageToken;
-        const res = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems?' + new URLSearchParams(body), {
-          headers: { Authorization: 'Bearer ' + state.accessToken }
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        photos = photos.concat(data.mediaItems || []);
-        pageToken = data.nextPageToken || '';
-      } while (pageToken && photos.length < 500);
-    } else {
-      do {
-        const body = { albumId: album.id, pageSize: 100 };
-        if (pageToken) body.pageToken = pageToken;
-        const res = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems:search', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + state.accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        photos = photos.concat(data.mediaItems || []);
-        pageToken = data.nextPageToken || '';
-      } while (pageToken);
-    }
-
-    // Filter out hidden + only images
-    photos = photos.filter(p => p.mimeType && p.mimeType.startsWith('image/') && !state.hiddenPhotos.includes(p.id));
-
-    if (photos.length === 0) { showToast('אין תמונות באלבום זה'); return; }
-
-    state.photos = state.settings.shuffle ? shuffleArray([...photos]) : photos;
-    state.currentIndex = 0;
-    state.rotations = {};
-    initSlideshow();
-  } catch (e) {
-    document.getElementById('slideContainer').innerHTML = `<div class="loading-center" style="color:var(--danger)">שגיאה: ${e.message}</div>`;
-  }
-}
-
-// ══════════════════════════════════════════
-//  DEMO MODE
-// ══════════════════════════════════════════
-function loadDemoPhotos() {
-  showScreen('albumScreen');
-  const grid = document.getElementById('albumsGrid');
-  const demoAlbums = [
-    { id: 'demo1', title: 'טבע', count: 6, color: '#1a3a1a' },
-    { id: 'demo2', title: 'ערים', count: 4, color: '#1a1a3a' },
-    { id: 'demo3', title: 'כל הדמו', count: 10, color: '#3a1a1a' },
-  ];
-  grid.innerHTML = '';
-  demoAlbums.forEach(a => {
-    const card = document.createElement('div');
-    card.className = 'album-card album-placeholder';
-    card.style.background = a.color;
-    card.innerHTML = `<svg style="width:40px;height:40px;opacity:0.4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span style="font-size:0.85rem;color:var(--text)">${a.title}</span><span style="font-size:0.75rem;color:var(--text-dim)">${a.count} תמונות</span>`;
-    card.onclick = () => loadDemoSlideshow(a);
-    grid.appendChild(card);
-  });
-}
-
-function loadDemoSlideshow(album) {
-  showScreen('slideshowScreen');
-  state.albumName = album.title;
-  document.getElementById('albumTitle').textContent = album.title;
-
-  // Use Unsplash for demo
-  const keywords = album.id === 'demo1' ? ['nature','forest','mountain','flower','lake','sky'] :
-                   album.id === 'demo2' ? ['city','street','architecture','night'] :
-                   ['nature','city','forest','mountain','flower','lake','sky','street','architecture','night'];
-
-  state.photos = keywords.map((k, i) => ({
-    id: 'demo_' + i,
-    baseUrl: `https://source.unsplash.com/1920x1080/?${k}&sig=${i}`,
-    mimeType: 'image/jpeg',
-    filename: k + '.jpg'
-  }));
-  state.photos = state.photos.filter(p => !state.hiddenPhotos.includes(p.id));
-  state.currentIndex = 0;
-  state.rotations = {};
-  initSlideshow();
-}
-
-// ══════════════════════════════════════════
-//  SLIDESHOW ENGINE
-// ══════════════════════════════════════════
-function getPhotoUrl(photo) {
-  if (photo.baseUrl) {
-    if (photo.baseUrl.includes('unsplash')) return photo.baseUrl;
-    return photo.baseUrl + '=w1920-h1080';
-  }
-  return '';
-}
-
-function initSlideshow() {
-  const container = document.getElementById('slideContainer');
-  container.innerHTML = '';
-
-  // Pre-render first 3 slides
-  state.photos.forEach((photo, i) => {
-    const slide = document.createElement('div');
-    slide.className = 'slide';
-    slide.dataset.index = i;
-
-    const img = document.createElement('img');
-    img.draggable = false;
-    if (i < 3) img.src = getPhotoUrl(photo);
-    img.alt = photo.filename || '';
-    applyFitMode(slide, img);
-
-    const rot = state.rotations[photo.id] || 0;
-    if (rot) img.style.transform = `rotate(${rot}deg) scale(${state.settings.zoom / 100})`;
-    else img.style.transform = `scale(${state.settings.zoom / 100})`;
-
-    slide.appendChild(img);
-    container.appendChild(slide);
-  });
-
-  updateSlideCounter();
-  goToSlide(0, false);
-  showHud();
-  showSwipeHint();
-  startTimer();
-  setupGestures();
-}
-
-function goToSlide(index, animate = true) {
-  const slides = document.querySelectorAll('.slide');
-  if (!slides.length) return;
-
-  // Preload next
-  const nextIdx = (index + 1) % state.photos.length;
-  const nextSlide = document.querySelector(`.slide[data-index="${nextIdx}"]`);
-  if (nextSlide) {
-    const nextImg = nextSlide.querySelector('img');
-    if (!nextImg.src) nextImg.src = getPhotoUrl(state.photos[nextIdx]);
-  }
-
-  const prevActive = document.querySelector('.slide.active');
-  const newActive = document.querySelector(`.slide[data-index="${index}"]`);
-  if (!newActive) return;
-
-  // Load if not loaded
-  const img = newActive.querySelector('img');
-  if (!img.src) img.src = getPhotoUrl(state.photos[index]);
-
-  if (animate) {
-    const t = state.settings.transition;
-    if (t === 'fade') {
-      if (prevActive) prevActive.classList.remove('active');
-      newActive.classList.add('active');
-    } else if (t === 'zoom') {
-      if (prevActive) prevActive.classList.remove('active');
-      newActive.style.transform = 'scale(1.08)';
-      newActive.style.opacity = '0';
-      newActive.classList.add('active');
-      requestAnimationFrame(() => {
-        newActive.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
-        newActive.style.transform = 'scale(1)';
-        newActive.style.opacity = '1';
-        setTimeout(() => { newActive.style.transition = ''; }, 900);
-      });
-    } else if (t === 'slide') {
-      const dir = index > state.currentIndex ? 1 : -1;
-      if (prevActive) {
-        prevActive.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
-        prevActive.style.transform = `translateX(${-dir * 100}%)`;
-        prevActive.style.opacity = '0';
-        setTimeout(() => { prevActive.classList.remove('active'); prevActive.style.transform = ''; prevActive.style.opacity = ''; prevActive.style.transition = ''; }, 520);
-      }
-      newActive.style.transform = `translateX(${dir * 100}%)`;
-      newActive.style.opacity = '0';
-      newActive.classList.add('active');
-      requestAnimationFrame(() => {
-        newActive.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
-        newActive.style.transform = 'translateX(0)';
-        newActive.style.opacity = '1';
-        setTimeout(() => { newActive.style.transition = ''; }, 520);
-      });
-    } else if (t === 'flip') {
-      if (prevActive) {
-        prevActive.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-        prevActive.style.transform = 'rotateY(90deg)';
-        prevActive.style.opacity = '0';
-        setTimeout(() => { prevActive.classList.remove('active'); prevActive.style.transform = ''; prevActive.style.opacity = ''; prevActive.style.transition = ''; }, 320);
-      }
-      newActive.style.transform = 'rotateY(-90deg)';
-      newActive.style.opacity = '0';
-      newActive.classList.add('active');
-      setTimeout(() => {
-        newActive.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-        newActive.style.transform = 'rotateY(0)';
-        newActive.style.opacity = '1';
-        setTimeout(() => { newActive.style.transition = ''; }, 320);
-      }, 320);
-    }
-  } else {
-    if (prevActive) prevActive.classList.remove('active');
-    newActive.classList.add('active');
-  }
-
-  state.activeSlideEl = newActive;
-  state.currentIndex = index;
-  updateSlideCounter();
-}
-
-function updateSlideCounter() {
-  document.getElementById('slideCounter').textContent = `${state.currentIndex + 1} / ${state.photos.length}`;
-}
-
-function nextSlide() {
-  const next = (state.currentIndex + 1) % state.photos.length;
-  goToSlide(next, true);
-  resetTimer();
-}
-
-function prevSlide() {
-  const prev = (state.currentIndex - 1 + state.photos.length) % state.photos.length;
-  goToSlide(prev, true);
-  resetTimer();
-}
-
-// ══════════════════════════════════════════
-//  TIMER & PROGRESS
-// ══════════════════════════════════════════
-function startTimer() {
-  stopTimer();
-  if (!state.isPlaying) return;
-  state.progressDuration = state.settings.delay * 1000;
-  state.progressStart = Date.now();
-
-  document.getElementById('progressFill').style.transition = `width ${state.settings.delay}s linear`;
-  document.getElementById('progressFill').style.width = '100%';
-
-  state.timer = setTimeout(() => {
-    nextSlide();
-    startTimer();
-  }, state.settings.delay * 1000);
-}
-
-function stopTimer() {
-  clearTimeout(state.timer);
-  const fill = document.getElementById('progressFill');
-  // Freeze progress
-  const w = fill.getBoundingClientRect().width / fill.parentElement.getBoundingClientRect().width * 100;
-  fill.style.transition = 'none';
-  fill.style.width = w + '%';
-}
-
-function resetTimer() {
-  document.getElementById('progressFill').style.transition = 'none';
-  document.getElementById('progressFill').style.width = '0%';
-  setTimeout(startTimer, 50);
-}
-
-function togglePlay() {
-  state.isPlaying = !state.isPlaying;
-  document.getElementById('pauseIcon').style.display = state.isPlaying ? 'block' : 'none';
-  document.getElementById('playIcon').style.display = state.isPlaying ? 'none' : 'block';
-
-  const indicator = document.getElementById('centerPauseIndicator');
-  const icon = document.getElementById('centerPauseIcon');
-
-  if (!state.isPlaying) {
-    stopTimer();
-    icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
-  } else {
-    startTimer();
-    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-  }
-
-  indicator.classList.add('show');
-  setTimeout(() => indicator.classList.remove('show'), 1000);
-}
-
-// ══════════════════════════════════════════
-//  GESTURES
-// ══════════════════════════════════════════
-function setupGestures() {
-  const container = document.getElementById('slideshowScreen');
-
-  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
-  let isTap = false;
-
-  container.addEventListener('touchstart', e => {
-    if (e.target.closest('#settingsPanel, #hiddenPanel, #hud')) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    touchStartTime = Date.now();
-    isTap = true;
-  }, { passive: true });
-
-  container.addEventListener('touchend', e => {
-    if (e.target.closest('#settingsPanel, #hiddenPanel, #hud')) return;
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    const dt = Date.now() - touchStartTime;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 15 && dt < 250) {
-      // Tap — toggle HUD or play/pause
-      if (document.getElementById('hud').classList.contains('visible')) {
-        hideHud();
-      } else {
-        showHud();
-      }
-      return;
-    }
-
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      if (dx < 0) nextSlide(); else prevSlide();
-    }
-  }, { passive: true });
-
-  // Double tap = play/pause
-  let lastTap = 0;
-  container.addEventListener('touchend', e => {
-    if (e.target.closest('#settingsPanel, #hiddenPanel, #hud')) return;
-    const now = Date.now();
-    if (now - lastTap < 300) { togglePlay(); }
-    lastTap = now;
-  });
-}
-
-// ══════════════════════════════════════════
-//  HUD AUTO-HIDE
-// ══════════════════════════════════════════
-function showHud() {
-  document.getElementById('hud').classList.add('visible');
-  document.getElementById('pauseIcon').style.display = state.isPlaying ? 'block' : 'none';
-  document.getElementById('playIcon').style.display = state.isPlaying ? 'none' : 'block';
-  clearTimeout(state.hudTimeout);
-  state.hudTimeout = setTimeout(hideHud, 4000);
-}
-
-function hideHud() {
-  document.getElementById('hud').classList.remove('visible');
-}
-
-function showSwipeHint() {
-  const hint = document.getElementById('swipeHint');
-  hint.classList.add('show');
-  setTimeout(() => hint.classList.remove('show'), 3000);
-}
-
-// ══════════════════════════════════════════
-//  SETTINGS
-// ══════════════════════════════════════════
-function toggleSettings() {
-  const panel = document.getElementById('settingsPanel');
-  const overlay = document.getElementById('overlay');
-  panel.classList.toggle('open');
-  overlay.classList.toggle('show');
-  clearTimeout(state.hudTimeout);
-}
-
-function closeSettings() {
-  document.getElementById('settingsPanel').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  showHud();
-}
-
-function updateDelay(val) {
-  state.settings.delay = parseInt(val);
-  document.getElementById('delayVal').textContent = val + 's';
-  if (state.isPlaying) resetTimer();
-}
-
-function setTransition(val, el) {
-  state.settings.transition = val;
-  document.querySelectorAll('#transitionChips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-}
-
-function setFitMode(val, el) {
-  state.settings.fitMode = val;
-  document.querySelectorAll('#fitChips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  // Apply to all slides
-  document.querySelectorAll('.slide').forEach(slide => {
-    const img = slide.querySelector('img');
-    if (img) applyFitMode(slide, img);
-  });
-}
-
-function applyFitMode(slide, img) {
-  const mode = state.settings.fitMode;
-  slide.classList.remove('smart-fit');
-  if (mode === 'smart') {
-    img.onload = () => {
-      const ratio = img.naturalWidth / img.naturalHeight;
-      const screenRatio = window.innerWidth / window.innerHeight;
-      if (Math.abs(ratio - screenRatio) < 0.3) {
-        slide.classList.add('smart-fit');
-      }
-    };
-    img.style.objectFit = 'contain';
-  } else if (mode === 'cover') {
-    slide.classList.add('smart-fit');
-  } else {
-    img.style.objectFit = 'contain';
-  }
-}
-
-function updateZoom(val) {
-  state.settings.zoom = parseInt(val);
-  document.getElementById('zoomVal').textContent = val + '%';
-  document.querySelectorAll('.slide img').forEach(img => {
-    const photo = state.photos[parseInt(img.closest('.slide').dataset.index)];
-    if (!photo) return;
-    const rot = state.rotations[photo.id] || 0;
-    img.style.transform = `rotate(${rot}deg) scale(${val / 100})`;
-  });
-  showZoomIndicator(val + '%');
-}
-
-function showZoomIndicator(text) {
-  const el = document.getElementById('zoomIndicator');
-  el.textContent = '🔍 ' + text;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 1500);
-}
-
-function toggleAutoRotate(el) {
-  el.classList.toggle('on');
-  state.settings.autoRotate = el.classList.contains('on');
-}
-
-function toggleShuffle(el) {
-  el.classList.toggle('on');
-  state.settings.shuffle = el.classList.contains('on');
-  if (state.settings.shuffle) {
-    state.photos = shuffleArray([...state.photos]);
-    state.currentIndex = 0;
-    goToSlide(0, false);
-  }
-}
-
-// ══════════════════════════════════════════
-//  PHOTO ACTIONS
-// ══════════════════════════════════════════
-function hideCurrentPhoto() {
-  const photo = state.photos[state.currentIndex];
-  if (!photo) return;
-  state.hiddenPhotos.push(photo.id);
-  localStorage.setItem('hiddenPhotos', JSON.stringify(state.hiddenPhotos));
-  state.photos.splice(state.currentIndex, 1);
-  if (state.photos.length === 0) { showToast('אין יותר תמונות'); goBackToAlbums(); return; }
-  if (state.currentIndex >= state.photos.length) state.currentIndex = 0;
-
-  // Rebuild slides
-  document.querySelector(`.slide[data-index="${state.currentIndex}"]`)?.remove();
-  initSlideshow();
-  showToast('התמונה הוסתרה');
-}
-
-function rotatePhoto() {
-  const photo = state.photos[state.currentIndex];
-  if (!photo) return;
-  const current = state.rotations[photo.id] || 0;
-  state.rotations[photo.id] = (current + 90) % 360;
-  const activeSlide = document.querySelector('.slide.active img');
-  if (activeSlide) {
-    activeSlide.style.transform = `rotate(${state.rotations[photo.id]}deg) scale(${state.settings.zoom / 100})`;
-  }
-}
-
-// ══════════════════════════════════════════
-//  HIDDEN PANEL
-// ══════════════════════════════════════════
-function openHiddenPanel() {
-  const panel = document.getElementById('hiddenPanel');
-  panel.classList.add('open');
-  const grid = document.getElementById('hiddenGrid');
-  grid.innerHTML = '';
-
-  if (state.hiddenPhotos.length === 0) {
-    grid.innerHTML = '<div class="loading-center" style="color:var(--text-dim)">אין תמונות מוסתרות</div>';
-    return;
-  }
-
-  // Show hidden photos stubs (since we don't have their URL after hiding)
-  state.hiddenPhotos.forEach(id => {
-    const div = document.createElement('div');
-    div.className = 'hidden-thumb';
-    div.innerHTML = `
-      <div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-dim)">${id.substring(0,8)}...</div>
-      <div class="unhide-btn" onclick="unhidePhoto('${id}',this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-      </div>`;
-    grid.appendChild(div);
-  });
-}
-
-function unhidePhoto(id, btn) {
-  state.hiddenPhotos = state.hiddenPhotos.filter(h => h !== id);
-  localStorage.setItem('hiddenPhotos', JSON.stringify(state.hiddenPhotos));
-  btn.closest('.hidden-thumb').remove();
-  showToast('התמונה הוחזרה');
-}
-
-function closeHiddenPanel() {
-  document.getElementById('hiddenPanel').classList.remove('open');
-}
-
-// ══════════════════════════════════════════
-//  NAVIGATION
-// ══════════════════════════════════════════
-function goBackToAlbums() {
-  stopTimer();
-  const screen = document.getElementById('albumScreen');
-  if (!screen.classList.contains('hidden')) return;
-  showScreen('albumScreen');
-}
-
-// ══════════════════════════════════════════
-//  UTILITIES
-// ══════════════════════════════════════════
-function shuffleArray(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function showToast(msg, duration = 2500) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => toast.classList.remove('show'), duration);
-}
-
-// ══════════════════════════════════════════
-//  FULLSCREEN
-// ══════════════════════════════════════════
-function requestFullscreen() {
-  const el = document.documentElement;
-  if (el.requestFullscreen) el.requestFullscreen();
-  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-}
-
-// Keep screen awake (Wake Lock API)
-async function keepScreenAwake() {
-  try {
-    if ('wakeLock' in navigator) {
-      await navigator.wakeLock.request('screen');
-    }
-  } catch(e) {}
-}
-
-// ══════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  keepScreenAwake();
-  handleOAuthCallback();
-
-  // Click slideshow area -> show hud
-  document.getElementById('slideshowScreen').addEventListener('click', e => {
-    if (e.target.closest('#settingsPanel, #hiddenPanel')) return;
-    showHud();
-  });
-});
-
-// Handle visibility change (tab switch)
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopTimer();
-  else if (state.isPlaying && state.photos.length) startTimer();
-});
-</script>
-
-<!-- ══════════════════════════════════════
-     הוראות הגדרה
-══════════════════════════════════════ -->
-<div style="display:none" id="setup-instructions">
-<!--
-=== הוראות הגדרת Google Photos API ===
-
-1. גש ל: https://console.cloud.google.com
-2. צור פרויקט חדש
-3. חפש "Photos Library API" והפעל אותו
-4. עבור ל Credentials → Create Credentials → OAuth Client ID
-5. סוג האפליקציה: Web Application
-6. הוסף את כתובת ה-URL של הקובץ שלך ל-Authorized JavaScript Origins
-   (לדוגמה: http://localhost:8080 לבדיקה מקומית)
-7. העתק את ה-Client ID לתוך הקוד: GOOGLE_CLIENT_ID = 'xxx.apps.googleusercontent.com'
-8. הרץ את הקובץ דרך שרת HTTP (לא file://) — אפשר להשתמש ב:
-   python3 -m http.server 8080
-   או העלה ל-Google Drive ופתח מ-Drive
-
-הערה חשובה: הפעם הראשונה שתתחבר, גוגל יציג אזהרה "App not verified" —
-לחץ "Advanced" → "Go to app" — זה תקין לאפליקציה פרטית.
--->
-</div>
-
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <script>
+        // --- הגדרות אישיות (חובה לעדכן!) ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo9i8NKvs0pmwX56EcdtRL5fWG0aOZqGk44Xc0zp_Uj8g5x0gsjVUx168SbCgWPfs4-Q/exec";
+        const KEY = "1234";
+        // ----------------------------------
+
+        let swiper;
+
+        async function fetchImages() {
+            try {
+                const response = await fetch(`${SCRIPT_URL}?key=${KEY}`);
+                const images = await response.json();
+                
+                if (images && images.length > 0) {
+                    renderSlideshow(images);
+                    document.getElementById('loader').style.display = 'none';
+                } else {
+                    document.getElementById('loader').innerText = "לא נמצאו תמונות באלבום.";
+                }
+            } catch (error) {
+                console.error("Error fetching images:", error);
+                document.getElementById('loader').innerText = "שגיאה בחיבור לשרת.";
+            }
+        }
+
+        function renderSlideshow(imageUrls) {
+            const container = document.getElementById('image-container');
+            container.innerHTML = imageUrls.map(url => `
+                <div class="swiper-slide">
+                    <img src="${url}" class="photo">
+                </div>
+            `).join('');
+
+            // אתחול הקרוסלה
+            swiper = new Swiper('.swiper', {
+                loop: true,
+                speed: 1000,
+                autoplay: {
+                    delay: 3000, // מעבר כל 3 שניות
+                    disableOnInteraction: false,
+                },
+                navigation: {
+                    nextEl: null,
+                    prevEl: null,
+                },
+                // לחיצה באמצע עוצרת/מפעילה
+                on: {
+                    click: function () {
+                        togglePlay();
+                    }
+                }
+            });
+        }
+
+        function togglePlay() {
+            const btn = document.getElementById('playPauseBtn');
+            if (swiper.autoplay.running) {
+                swiper.autoplay.stop();
+                btn.innerText = "הפעל ▶️";
+            } else {
+                swiper.autoplay.start();
+                btn.innerText = "עצור ⏸️";
+            }
+        }
+
+        function rotateCurrent() {
+            const activeSlide = document.querySelector('.swiper-slide-active .photo');
+            if (activeSlide) {
+                activeSlide.classList.toggle('rotate-90');
+            }
+        }
+
+        // הפעלה ראשונית
+        fetchImages();
+    </script>
 </body>
 </html>
